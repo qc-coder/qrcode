@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vladimir's QR-code generator</title>
+    <!-- Using EasyQRCodeJS -->
+    <script src="https://cdn.jsdelivr.net/gh/ushelp/EasyQRCodeJS@master/dist/easy.qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary: #007bff;
+            --secondary: #6c757d;
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6;
+            background: var(--bg); 
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .main-layout {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+        .generator-section {
+            flex: 1;
+            min-width: 350px;
+            text-align: center;
+        }
+        .settings-panel {
+            width: 280px;
+            text-align: left;
+        }
+
+        /* FIX 1: Prevent Anti-aliasing (Grey blur) */
+        #qrcode canvas, #qrcode img { 
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            border: 1px solid #eee; /* Light border to see the edge */
+        }
+
+        .about-section {
+            max-width: 800px;
+            margin: 40px auto;
+            text-align: left;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        h1, h2, h3 { color: #222; margin-top: 0; }
+        
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #666; }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+        .color-picker-wrapper { display: flex; gap: 10px; align-items: center; }
+        input[type="color"] { border: none; width: 40px; height: 40px; cursor: pointer; background: none; }
+
+        #qrcode { display: flex; justify-content: center; margin: 20px 0; min-height: 200px; }
+        
+        .button-group { display: flex; gap: 10px; }
+        button { 
+            flex: 1;
+            padding: 12px; 
+            cursor: pointer; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            font-size: 14px;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+        .btn-png { background: var(--primary); }
+        .btn-svg { background: var(--secondary); }
+        button:hover { opacity: 0.9; }
+
+        .badge {
+            display: inline-block;
+            background: #e1f5fe;
+            color: #01579b;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1 style="text-align:center;">Vladimir's QR-code generator</h1>
+
+    <div class="main-layout">
+        <!-- Settings -->
+        <div class="card settings-panel">
+            <h3>Customization</h3>
+            
+            <div class="input-group">
+                <label>Foreground Color (Hex)</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="colorDarkPicker" value="#000000" oninput="syncColor('dark')">
+                    <input type="text" id="colorDark" value="#000000" oninput="syncPicker('dark')">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Background Color (Hex)</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="colorLightPicker" value="#ffffff" oninput="syncColor('light')">
+                    <input type="text" id="colorLight" value="#ffffff" oninput="syncPicker('light')">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Image Size (px)</label>
+                <input type="number" id="qrSize" value="300" step="10" min="50" max="2000" oninput="updateQR()">
+            </div>
+        </div>
+
+        <!-- Main Generator -->
+        <div class="card generator-section">
+            <div class="badge">Static QR (No expiration)</div>
+            <input type="text" id="text" placeholder="Paste your link or text here..." oninput="updateQR()" value="https://google.com">
+            
+            <div id="qrcode"></div>
+
+            <div class="button-group">
+                <button class="btn-png" onclick="downloadPNG()">Save PNG</button>
+                <button class="btn-svg" onclick="downloadSVG()">Save SVG (Vector)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="about-section">
+        <h3>Why I Built This QR Code Generator</h3>
+        <p>
+            I was tired of so-called "free" QR code generators that create dynamic links and track every scan — or worse, deactivate your code unless you buy a subscription. 
+            So I built my own tool: a <strong>free, static QR code generator</strong> that works forever without middlemen, cookies, tracking, or login requirements. 
+            I wanted something simple, private, and reliable — because even the QR codes on many professional business cards expire, which hurts brands in the long run. 
+            This generator is my way of giving everyone direct, lasting access to a truly <strong>free QR code generator</strong> that just works.
+        </p>
+    </div>
+
+
+    <!-- Hidden div for SVG processing -->
+    <div id="svg-buffer" style="display:none;"></div>
+
+    <script>
+        var qrContainer = document.getElementById("qrcode");
+        var qrcode = null;
+
+        function syncColor(type) {
+            if(type === 'dark') document.getElementById('colorDark').value = document.getElementById('colorDarkPicker').value.toUpperCase();
+            else document.getElementById('colorLight').value = document.getElementById('colorLightPicker').value.toUpperCase();
+            updateQR();
+        }
+
+        function syncPicker(type) {
+            let val = document.getElementById(type === 'dark' ? 'colorDark' : 'colorLight').value;
+            if(/^#[0-9A-F]{6}$/i.test(val)) {
+                document.getElementById(type === 'dark' ? 'colorDarkPicker' : 'colorLightPicker').value = val;
+                updateQR();
+            }
+        }
+
+        function getOptions() {
+            var val = document.getElementById("text").value;
+            var size = parseInt(document.getElementById("qrSize").value) || 300;
+            var colorDark = document.getElementById("colorDark").value;
+            var colorLight = document.getElementById("colorLight").value;
+            
+            return {
+                text: val || " ",
+                width: size,
+                height: size,
+                colorDark: colorDark,
+                colorLight: colorLight,
+                correctLevel: QRCode.CorrectLevel.H,
+                /* FIX 2: Quiet zone logic */
+                /* Setting a small integer usually tells the library to use 'modules' rather than large pixel values */
+                quietZone: 4, 
+                quietZoneColor: colorLight
+            };
+        }
+
+        function updateQR() {
+            qrContainer.innerHTML = "";
+            qrcode = new QRCode(qrContainer, getOptions());
+        }
+
+        function downloadPNG() {
+            var canvas = qrContainer.querySelector('canvas');
+            if (canvas) {
+                var link = document.createElement('a');
+                link.download = 'vladimir-qr.png';
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            }
+        }
+
+        // FIX 3: Add SVG Download Capability
+        function downloadSVG() {
+            const buffer = document.getElementById("svg-buffer");
+            buffer.innerHTML = "";
+            
+            // Generate a temporary QR in SVG format
+            let options = getOptions();
+            options.drawer = 'svg'; 
+            
+            new QRCode(buffer, options);
+
+            // Wait a tiny bit for the library to finish rendering the SVG
+            setTimeout(() => {
+                const svgElement = buffer.querySelector('svg');
+                const svgData = new XMLSerializer().serializeToString(svgElement);
+                const svgBlob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
+                const url = URL.createObjectURL(svgBlob);
+                
+                const link = document.createElement('a');
+                link.download = 'vladimir-qr.svg';
+                link.href = url;
+                link.click();
+                URL.revokeObjectURL(url);
+            }, 50);
+        }
+
+        updateQR();
+    </script>
+</body>
+</html>
