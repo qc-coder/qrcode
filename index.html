@@ -110,7 +110,21 @@
     <h1 style="text-align:center;">Vladimir's QR-code generator</h1>
 
     <div class="main-layout">
-        <!-- Settings -->
+
+        <!-- Main Generator -->
+        <div class="card generator-section">
+            <div class="badge">Static QR (No expiration)</div>
+            <input type="text" id="text" placeholder="Paste your link or text here..." oninput="updateQR()" value="https://google.com">
+            
+            <div id="qrcode"></div>
+
+            <div class="button-group">
+                <button class="btn-png" onclick="downloadPNG()">Save PNG</button>
+                <button class="btn-svg" onclick="downloadSVG()">Save SVG (Vector)</button>
+            </div>
+        </div>
+		
+		<!-- Settings -->
         <div class="card settings-panel">
             <h3>Customization</h3>
             
@@ -136,19 +150,7 @@
             </div>
         </div>
 
-        <!-- Main Generator -->
-        <div class="card generator-section">
-            <div class="badge">Static QR (No expiration)</div>
-            <input type="text" id="text" placeholder="Paste your link or text here..." oninput="updateQR()" value="https://google.com">
-            
-            <div id="qrcode"></div>
-
-            <div class="button-group">
-                <button class="btn-png" onclick="downloadPNG()">Save PNG</button>
-                <button class="btn-svg" onclick="downloadSVG()">Save SVG (Vector)</button>
-            </div>
-        </div>
-    </div>
+	</div>
 
     <div class="about-section">
         <h3>Why I Built This QR Code Generator</h3>
